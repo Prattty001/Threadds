@@ -1,14 +1,60 @@
 import { Avatar } from "@chakra-ui/avatar";
 import { Box, Flex, Link, Text, VStack } from "@chakra-ui/layout";
 import { Menu, MenuButton, MenuItem, MenuList } from "@chakra-ui/menu";
-import { Portal, useToast } from "@chakra-ui/react";
+import { Button, Portal, useToast } from "@chakra-ui/react";
 import { BsInstagram } from "react-icons/bs";
 import { CgMoreO } from "react-icons/cg";
 import { Link as RouterLink } from "react-router-dom";
+import {useRecoilValue} from "recoil";
+import userAtom from "../atoms/userAtom";
+import { useState } from "react";
+import useShowToast from "../hooks/useShowToast";
 
-const UserHeader = () => {
+const UserHeader = ({user}) => {
   const toast = useToast();
+  //getting the current user status!..
+const curruser = useRecoilValue(userAtom); //logged in!..
+const[follow,setfollowing]=useState(user.followers.includes(curruser._id));
+const [update,setupdate] = useState(false);
+const showToast = useShowToast();
 
+
+//Handling follow and unfollow of user!..
+const handlefau = async ()=>{
+  if(!curruser){
+    showToast("Error","Please Login to fololow","error");
+    return;
+  }
+  setupdate(true);
+  try {
+    const res = await fetch(`/api/users/follow/${user._id}`,{
+      method:"POST",
+      headers : {
+        "Content-Type":"application/json"
+      },
+      
+    }); 
+const data = await res.json();
+if(data.error){
+    showToast("Error",data.error,"error");
+    return;
+}   
+if(follow){
+  showToast("Success",  `Unfollowed${user.name}` ,"success");
+  user.followers.pop();
+}
+else{
+  showToast("Success",`followed${user.name}` ,"success");
+  user.followers.push( curruser._id);
+}
+setfollowing(!follow); 
+  } catch (error) {
+    showToast("Error",error,"error");
+  }
+  finally{
+    setupdate(false);
+  }
+}
   const copyURL = () => {
     const currentURL = window.location.href;
     navigator.clipboard.writeText(currentURL).then(() => {
@@ -28,10 +74,10 @@ const UserHeader = () => {
       <Flex justifyContent={"space-between"} w={"full"}>
         <Box>
           <Text fontSize={"2xl"} fontWeight={"bold"}>
-            Mark Zuckerberg
+            {user.name}
           </Text>
           <Flex gap={2} alignItems={"center"}>
-            <Text fontSize={"sm"}>markzuckerberg@123</Text>
+            <Text fontSize={"sm"}>{user.username}</Text>
             <Text
               fontSize={"xs"}
               bg={"gray.800"}
@@ -44,20 +90,44 @@ const UserHeader = () => {
           </Flex>
         </Box>
         <Box>
-          <Avatar
-            name="Mark Zuckerberg"
-            src="/zuck-avatar.png"
+          {user.profilePic && (
+            <Avatar
+            name={user.name}
+            src={user.profilePic}
             size={{
               base: "md",
               md: "xl",
             }}
           />
+          )}
+          {!user.profilePic && (
+            <Avatar
+            name={user.name}
+            src="https://bit.ly/broken-link"
+            size={{
+              base: "md",
+              md: "xl",
+            }}
+          />
+          )}
+
         </Box>
       </Flex>
-      <Text>founder, executive chairman and ceo of meta platform</Text>
+      <Text>{user.bio}</Text>
+      {curruser._id===user._id &&(
+        <Link as={RouterLink} to='/update' >
+        <Button size={"sm"}>Update Profile</Button>
+        </Link>
+      )}
+            {curruser._id!==user._id &&(
+        <Button size={"sm"} onClick={handlefau} isLoading={update}>
+          
+          {follow ? "unfollow" : "follow"}
+          </Button>
+      )}
       <Flex w={"full"} justifyContent={"space-between"}>
         <Flex gap={2} alignItems={"center"}>
-          <Text color={"gray.500"}>3.3K followers</Text>
+          <Text color={"gray.500"}>{user.followers.length} followers</Text>
           <Box w="1" h="1" bg={"gray.500"} borderRadius={"full"}></Box>
           <Link color={"gray.500"}>instagram.com</Link>
         </Flex>
